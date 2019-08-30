@@ -1,0 +1,31 @@
+Reverse Geocoder
+-----------------
+Reverse Geocoder takes a latitude / longitude coordinate and returns the nearest town/city.
+This library improves on existing libraries called reverse_geocode developed by Richard Penman & reverse_geocoder by Ajay Thampi in the following ways:
+
+- support init non-singleton instance of RGeocoder to support different stream simultaneously (creating RGeocoderImpl class to support that)
+
+- added the capability change the header columns when loading custom stream and loaded different schemas
+
+- added query_dist to support returning distance in addtion to the reverse geocoding data itself
+
+- added do_extract to trigger extraction for any Geonames file, e.g: 1000, 15000 etc
+
+- removed win32 and python2 support. added utility function to load data from files/buffers
+
+Example usage:
+    >>> import rvgeocoder as rvg
+    >>> coordinates = (41.852968, -87.725730), (48.836364, 2.357422)
+    >>> rvg.search(coordinates)
+    [OrderedDict([('lat', '41.84559'),
+              ('lon', '-87.75394'),
+              ('name', 'Cicero'),
+              ('admin1', 'Illinois'),
+              ('admin2', 'Cook County'),
+              ('cc', 'US')]),
+     OrderedDict([('lat', '48.85341'),
+              ('lon', '2.3488'),
+              ('name', 'Paris'),
+              ('admin1', 'Ile-de-France'),
+              ('admin2', 'Paris'),
+              ('cc', 'FR')])]
