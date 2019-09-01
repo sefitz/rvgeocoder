@@ -87,13 +87,6 @@ results = geo.query(coordinates)
 
 As mentioned above, the custom data source must be comma-separated with a header as [rg_cities1000.csv](https://github.com/thampiman/reverse-geocoder/blob/master/reverse_geocoder/rg_cities1000.csv).
 
-## Performance
-The performance of modes 1 and 2 are plotted below for various input sizes.
-
-![Performance Comparison](performance.png)
-
-Mode 2 runs ~2x faster for very large inputs (10M coordinates).
-
 ## Acknowledgements
 1. Major inspiration is from Richard Penman's [reverse_geocode](https://bitbucket.org/richardpenman/reverse_geocode) library 
 2. First version based on [reverse_geocoder](https://pypi.org/project/reverse_geocoder/1.5.1/) developed by [Ajay Thampi](https://github.com/thampiman/reverse-geocoder)
