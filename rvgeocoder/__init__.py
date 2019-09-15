@@ -14,6 +14,7 @@ from scipy.spatial import cKDTree as KDTree
 from rvgeocoder import cKDTree_MP as KDTree_MP
 import numpy as np
 import io
+import shapely
 
 GN_URL = 'http://download.geonames.org/export/dump/'
 GN_CITIES1000 = 'cities1000'
