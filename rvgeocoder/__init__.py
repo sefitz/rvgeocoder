@@ -103,17 +103,19 @@ class RGeocoderDataLoader(object):
                 data_lines.extend(fd.readlines())
         return data_lines
     
-    @classmethod
-    def load_files_data(cls, files: list):
-        data_lines = cls.load_files_lines(files)
-        return ''.join(data_lines)
 
     @classmethod
     def load_files_stream(cls, files: list):
-        data = cls.load_files_data(files)
+        lines = cls.load_files_lines(files)
+        data = ''.join(lines)
         data_stream = io.StringIO(data)
         data_stream.seek(0)
         return data_stream
+    
+
+    @classmethod
+    def patch_location_files(location_files: list, patch_files: list):
+        pass
 
 
 class RGeocoderImpl(object):
@@ -151,22 +153,6 @@ class RGeocoderImpl(object):
         
         Arguments:
             location_files {list} -- list of files with lat, lon and additional info on the coord
-        
-        Returns:
-            [RGeocoderImpl]
-        """
-        data_stream = RGeocoderDataLoader.load_files_stream(location_files)
-        return cls(stream=data_stream)
-    
-    @classmethod
-    def from_files_patched(cls, location_files: list, patch_files: list):
-        """ This is similar to from_files, with additional patching.
-        Loading all the data from files and then adding the patch files where 
-        all the locations from patch_files 
-        
-        Arguments:
-            locations {list} -- list of files with lat, lon and additional info on the coord
-            patch_files {list} -- list of patch files
         
         Returns:
             [RGeocoderImpl]

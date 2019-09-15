@@ -23,4 +23,4 @@ if __name__ == '__main__':
     import pprint
     pprint.pprint(res[:10])
 
-    print('** run time is %s' % run_time)
+    print('** from_files run time is %s' % run_time)
