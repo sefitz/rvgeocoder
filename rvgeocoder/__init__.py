@@ -86,6 +86,36 @@ def singleton(cls):
     return getinstance
 
 
+class RGeocoderDataLoader(object):
+    @classmethod
+    def load_files_lines(cls, files: list):
+        data_lines = []
+        if not files:
+            return []
+        header_saved = False
+        for fl in files:
+            with open(fl) as fd:
+                # save header only once from the first file
+                header = next(fd)
+                if not header_saved:
+                    data_lines.append(header)
+                    header_saved = True
+                data_lines.extend(fd.readlines())
+        return data_lines
+    
+    @classmethod
+    def load_files_data(cls, files: list):
+        data_lines = cls.load_files_lines(files)
+        return ''.join(data_lines)
+
+    @classmethod
+    def load_files_stream(cls, files: list):
+        data = cls.load_files_data(files)
+        data_stream = io.StringIO(data)
+        data_stream.seek(0)
+        return data_stream
+
+
 class RGeocoderImpl(object):
     """
     The main reverse geocoder class
@@ -125,7 +155,7 @@ class RGeocoderImpl(object):
         Returns:
             [RGeocoderImpl]
         """
-        data_stream = cls.load_data(location_files)
+        data_stream = RGeocoderDataLoader.load_files_stream(location_files)
         return cls(stream=data_stream)
     
     @classmethod
@@ -141,26 +171,8 @@ class RGeocoderImpl(object):
         Returns:
             [RGeocoderImpl]
         """
-        data_stream = cls.load_data(location_files)
+        data_stream = RGeocoderDataLoader.load_files_stream(location_files)
         return cls(stream=data_stream)
-
-    @staticmethod
-    def load_data(locations):
-        data_stream = io.StringIO()
-        if not locations:
-            return None
-        header_saved = False
-        for loc in locations:
-            with open(loc) as f:
-                header = next(f)
-                if not header_saved:
-                    data_stream.write(header)
-                    header_saved = True
-                data_stream.writelines(f.readlines())
-
-        data_stream.seek(0)
-        return data_stream
-
 
     def query(self, coordinates):
         """
