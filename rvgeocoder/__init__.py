@@ -114,7 +114,14 @@ class RGeocoderDataLoader(object):
     
 
     @classmethod
-    def patch_location_files(location_files: list, patch_files: list):
+    def patch_location_files(location_files: list, patch_loc_file: str, patch_poly_file: str):
+        """[summary]
+        
+        Arguments:
+            location_files {list} -- any schema, default is: lat,lon,name,admin1,admin2,cc
+            patch_loc_file {str} -- schema of: location files
+            patch_poly_file {str} -- schema of: country,state,city,geometry(wkt format)
+        """
         pass
 
 
