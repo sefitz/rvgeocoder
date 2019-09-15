@@ -115,10 +115,34 @@ class RGeocoderImpl(object):
         return cls(stream=io.StringIO(data))
 
     @classmethod
-    def from_files(cls, locations):
-        data_stream = cls.load_data(locations)
+    def from_files(cls, location_files: list):
+        """ Loading files data into a stream and creating new instance.
+        
+        Arguments:
+            location_files {list} -- list of files with lat, lon and additional info on the coord
+        
+        Returns:
+            [RGeocoderImpl]
+        """
+        data_stream = cls.load_data(location_files)
         return cls(stream=data_stream)
     
+    @classmethod
+    def from_files_patched(cls, location_files: list, patch_files: list):
+        """ This is similar to from_files, with additional patching.
+        Loading all the data from files and then adding the patch files where 
+        all the locations from patch_files 
+        
+        Arguments:
+            locations {list} -- list of files with lat, lon and additional info on the coord
+            patch_files {list} -- list of patch files
+        
+        Returns:
+            [RGeocoderImpl]
+        """
+        data_stream = cls.load_data(location_files)
+        return cls(stream=data_stream)
+
     @staticmethod
     def load_data(locations):
         data_stream = io.StringIO()
