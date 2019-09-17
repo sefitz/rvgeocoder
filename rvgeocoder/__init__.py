@@ -168,7 +168,7 @@ class RGeocoderDataLoader:
         return filtered_locations + patch_locations
 
 
-class RGeocoderImpl(object):
+class RGeocoderImpl:
     """
     The main reverse geocoder class
     """
@@ -194,7 +194,7 @@ class RGeocoderImpl(object):
             self.tree = KDTree_MP.cKDTree_MP(coordinates)
 
     @classmethod
-    def from_data(cls, data):
+    def from_data(cls, data: str):
         return cls(stream=io.StringIO(data))
 
     @classmethod
