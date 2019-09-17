@@ -14,7 +14,9 @@ from scipy.spatial import cKDTree as KDTree
 from rvgeocoder import cKDTree_MP as KDTree_MP
 import numpy as np
 import io
-import shapely
+from shapely import wkt
+from shapely.geometry import Point
+
 
 GN_URL = 'http://download.geonames.org/export/dump/'
 GN_CITIES1000 = 'cities1000'
@@ -114,15 +116,44 @@ class RGeocoderDataLoader(object):
     
 
     @classmethod
-    def patch_location_files(location_files: list, patch_loc_file: str, patch_poly_file: str):
-        """[summary]
+    def create_patch_locations(location_files: list, patch_loc_file: str, patch_poly_file: str):
+        """ This method recieve a list of location files and two other files describing the patch polygon and 
+        The points that should represent this polygon in the Spatial index
         
         Arguments:
-            location_files {list} -- any schema, default is: lat,lon,name,admin1,admin2,cc
-            patch_loc_file {str} -- schema of: location files
-            patch_poly_file {str} -- schema of: country,state,city,geometry(wkt format)
+            location_files {list} -- a csv file with any schema continaing lat/lon, default is: 
+                                     lat,lon,name,admin1,admin2,cc
+            patch_loc_file {str} -- schema of: must be of the same schema as location files
+            patch_poly_file {str} -- schema of: {cc/name/admin1/admin2}..,geometry(wkt format)
         """
-        pass
+        locations = []
+        common_header = None
+        
+        polygons = []
+        with open(patch_poly_file, 'r') as fd:
+            poly_reader = csv.DictReader(fd)
+            for row in poly_reader:
+                polygons.append(wkt.loads(row['geometry']))
+
+        for loc in location_files:
+            with open(loc, 'r') as fd:
+                poly_reader = csv.DictReader(fd)
+                file_header = poly_reader.fieldnames
+                if common_header is None:
+                    common_header = file_header
+                elif common_header != file_header:
+                    raise Exception('File %s has different header than common. Expected header = %s, found = %s' % (loc, common_header, file_header))
+                locations.extend(list(poly_reader))
+        
+        filtered_locations = []
+        for loc in locations:
+            p = Point(float(loc['lon']), float(loc['lat']))
+            for poly in polygons:
+                if not poly.contains(p):
+                    filtered_locations.append(loc)
+                else:
+                    print('%s inside polygon' % p)
+        return filtered_locations
 
 
 class RGeocoderImpl(object):
