@@ -3,7 +3,7 @@ Changes
 
 1.0.6 ()
 ------------------
-- Added from_files_patch to allow overriding values for specific polygons
+- Refactored code and added RGeocoderDataLoader. Main new feature is create_patch_locations to allow overriding values for specific polygons.
 
 1.0.5 (2019-08-30)
 ------------------
