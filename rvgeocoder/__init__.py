@@ -14,6 +14,9 @@ from scipy.spatial import cKDTree as KDTree
 from rvgeocoder import cKDTree_MP as KDTree_MP
 import numpy as np
 import io
+from shapely import wkt
+from shapely.geometry import Point
+
 
 GN_URL = 'http://download.geonames.org/export/dump/'
 GN_CITIES1000 = 'cities1000'
@@ -70,11 +73,13 @@ A = 6378.137
 # WGS-84 eccentricity squared
 E2 = 0.00669437999014
 
+
 def singleton(cls):
     """
     Function to get single instance of the RGeocoder class
     """
     instances = {}
+
     def getinstance(**kwargs):
         """
         Creates a new RGeocoder instance if not created already
@@ -85,7 +90,100 @@ def singleton(cls):
     return getinstance
 
 
-class RGeocoderImpl(object):
+class RGeocoderDataLoader:
+    @classmethod
+    def load_files_lines(cls, files: list):
+        data_lines = []
+        if not files:
+            return []
+        header_saved = False
+        for fl in files:
+            with open(fl) as fd:
+                # save header only once from the first file
+                header = next(fd)
+                if not header_saved:
+                    data_lines.append(header)
+                    header_saved = True
+                data_lines.extend(fd.readlines())
+        return data_lines
+
+    @classmethod
+    def load_files_stream(cls, files: list):
+        lines = cls.load_files_lines(files)
+        data = ''.join(lines)
+        data_stream = io.StringIO(data)
+        data_stream.seek(0)
+        return data_stream
+
+    @classmethod
+    def create_patch_locations(cls, location_files: list, patch_loc_file: str,
+                               output_file: str = None, patch_poly_file: str = None):
+        """ This method recieve a list of location files and two other files describing the patch
+        polygon and The points that should represent this polygon in the Spatial index
+
+        REMARK: this can be done much more effiecint and easy using pandas, decided not to use this
+        in order to reduce requirements size.
+        Arguments:
+            location_files {list} -- a csv filename with any schema starting with lat/lon, default is:
+                                     lat,lon,name,admin1,admin2,cc
+            patch_loc_file {str} -- a csv filename with the same schema as location files
+            output_file {str} -- filename for the result of the location files after patching
+            patch_poly_file {str} -- OPTIONAL. If given, specifies the a csv file containing polygons of patched
+            location and remove all records within these polygon to avoid collision between patch and original 
+            location files. schema of file: {cc/name/admin1/admin2}..,geometry(wkt format)
+        Returns:
+            list of records containing the result of the patched location files
+        """
+
+        locations = []
+        polygons = []
+        filtered_locations = []
+        common_header = None
+
+        for loc in location_files:
+            with open(loc, 'r') as fd:
+                loc_reader = csv.DictReader(fd)
+                file_header = loc_reader.fieldnames
+                if common_header is None:
+                    common_header = file_header
+                elif common_header != file_header:
+                    raise Exception('File %s has different header than common. Expected header = %s, found = %s' % (
+                        loc, common_header, file_header))
+                locations.extend(list(loc_reader))
+
+        if patch_poly_file:
+            with open(patch_poly_file, 'r') as fd:
+                # get list of polygons
+                poly_reader = csv.DictReader(fd)
+                for row in poly_reader:
+                    polygons.append(wkt.loads(row['geometry']))
+
+                # iterate over polygons and remove all points inside of them - avoid collision between sets
+                for loc in locations:
+                    p = Point(float(loc['lon']), float(loc['lat']))
+                    for poly in polygons:
+                        if not poly.contains(p):
+                            filtered_locations.append(loc)
+                        else:
+                            print('Removing %s (%s,%s) inside polygon' % (
+                                loc.get('name', 'Unnamed'), loc['lat'], loc['lon']))
+        else:
+            filtered_locations = locations
+
+        with open(patch_loc_file, 'r') as fd:
+            loc_reader = csv.DictReader(fd)
+            patch_locations = list(loc_reader)
+
+        new_patched_locations = filtered_locations + patch_locations
+        if output_file:
+            with open(output_file, 'w') as fd:
+                writer = csv.DictWriter(fd, fieldnames=common_header)
+                writer.writeheader()
+                writer.writerows(new_patched_locations)
+        return new_patched_locations
+
+
+class RGeocoderImpl:
     """
     The main reverse geocoder class
     """
@@ -105,37 +203,25 @@ class RGeocoderImpl(object):
         else:
             coordinates, self.locations = self.extract(rel_path(RG_FILE))
 
-        if mode == 1: # Single-process
+        if mode == 1:  # Single-process
             self.tree = KDTree(coordinates)
-        else: # Multi-process
+        else:  # Multi-process
             self.tree = KDTree_MP.cKDTree_MP(coordinates)
 
     @classmethod
-    def from_data(cls, data):
+    def from_data(cls, data: str):
         return cls(stream=io.StringIO(data))
 
     @classmethod
-    def from_files(cls, locations):
-        data_stream = cls.load_data(locations)
+    def from_files(cls, location_files: list):
+        """ Loading files data into a stream and creating new instance.
+        Arguments:
+            location_files {list} -- list of files with lat, lon and additional info on the coord
+        Returns:
+            [RGeocoderImpl]
+        """
+        data_stream = RGeocoderDataLoader.load_files_stream(location_files)
         return cls(stream=data_stream)
-    
-    @staticmethod
-    def load_data(locations):
-        data_stream = io.StringIO()
-        if not locations:
-            return None
-        header_saved = False
-        for loc in locations:
-            with open(loc) as f:
-                header = next(f)
-                if not header_saved:
-                    data_stream.write(header)
-                    header_saved = True
-                data_stream.writelines(f.readlines())
-
-        data_stream.seek(0)
-        return data_stream
-
 
     def query(self, coordinates):
         """
@@ -200,7 +286,7 @@ class RGeocoderImpl(object):
             rows = csv.DictReader(open(local_filename, 'rt'))
         else:
             rows = self.do_extract(GN_CITIES1000, local_filename)
-        
+
         # Load all the coordinates and locations
         geo_coords, locations = [], []
         for row in rows:
@@ -219,7 +305,7 @@ class RGeocoderImpl(object):
         if not os.path.exists(cities_zipfilename):
             if self.verbose:
                 print('Downloading files from Geoname...')
-            
+
             import urllib.request
             urllib.request.urlretrieve(gn_cities_url, cities_zipfilename)
             urllib.request.urlretrieve(gn_admin1_url, GN_ADMIN1)
@@ -247,8 +333,7 @@ class RGeocoderImpl(object):
             print('Creating formatted geocoded file...')
         writer = csv.DictWriter(open(local_filename, 'wt'), fieldnames=RG_COLUMNS)
         rows = []
-        for row in csv.reader(open(cities_filename, 'rt'), \
-                delimiter='\t', quoting=csv.QUOTE_NONE):
+        for row in csv.reader(open(cities_filename, 'rt'), delimiter='\t', quoting=csv.QUOTE_NONE):
             lat = row[GN_COLUMNS['latitude']]
             lon = row[GN_COLUMNS['longitude']]
             name = row[GN_COLUMNS['asciiName']]
@@ -268,12 +353,13 @@ class RGeocoderImpl(object):
             if cc_admin2 in admin2_map:
                 admin2 = admin2_map[cc_admin2]
 
-            write_row = {'lat':lat,
-                            'lon':lon,
-                            'name':name,
-                            'admin1':admin1,
-                            'admin2':admin2,
-                            'cc':cc}
+            write_row = {
+                'lat': lat,
+                'lon': lon,
+                'name': name,
+                'admin1': admin1,
+                'admin2': admin2,
+                'cc': cc}
             rows.append(write_row)
         writer.writeheader()
         writer.writerows(rows)
@@ -305,11 +391,13 @@ def geodetic_in_ecef(geo_coords):
 
     return np.column_stack([x, y, z])
 
+
 def rel_path(filename):
     """
     Function that gets relative path to the filename
     """
     return os.path.join(os.getcwd(), os.path.dirname(__file__), filename)
+
 
 def get(geo_coord, mode=2, verbose=True):
     """
@@ -320,6 +408,7 @@ def get(geo_coord, mode=2, verbose=True):
 
     _rg = RGeocoder(mode=mode, verbose=verbose)
     return _rg.query([geo_coord])[0]
+
 
 def search(geo_coords, mode=2, verbose=True):
     """

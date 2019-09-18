@@ -1,0 +1,14 @@
+Changes
+=======
+
+1.0.6 (2019-09-18)
+------------------
+- Refactored code and added RGeocoderDataLoader. Main new feature is create_patch_locations to allow overriding values for specific polygons.
+
+1.0.5 (2019-08-30)
+------------------
+- support init non-singleton instance of RGeocoder to support different stream simultaneously (creating RGeocoderImpl class to support that)
+- added the capability change the header columns when loading custom stream and loaded different schemas
+- added query_dist to support returning distance in addtion to the reverse geocoding data itself
+- added do_extract to trigger extraction for any Geonames file, e.g: 1000, 15000 etc
+- removed win32 and python2 support. added utility function to load data from files/buffers
