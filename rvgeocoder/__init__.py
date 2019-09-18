@@ -116,21 +116,27 @@ class RGeocoderDataLoader:
         return data_stream
 
     @classmethod
-    def create_patch_locations(location_files: list, patch_loc_file: str, patch_poly_file: str = None):
+    def create_patch_locations(cls, location_files: list, patch_loc_file: str,
+                               output_file: str = None, patch_poly_file: str = None):
         """ This method recieve a list of location files and two other files describing the patch
         polygon and The points that should represent this polygon in the Spatial index
 
         REMARK: this can be done much more effiecint and easy using pandas, decided not to use this
         in order to reduce requirements size.
         Arguments:
-            location_files {list} -- a csv file with any schema continaing lat/lon, default is:
+            location_files {list} -- a csv filename with any schema starting with lat/lon, default is:
                                      lat,lon,name,admin1,admin2,cc
-            patch_loc_file {str} -- schema of: must be of the same schema as location files
-            patch_poly_file {str} -- schema of: {cc/name/admin1/admin2}..,geometry(wkt format)
+            patch_loc_file {str} -- a csv filename with the same schema as location files
+            output_file {str} -- filename for the result of the location files after patching
+            patch_poly_file {str} -- OPTIONAL. If given, specifies the a csv file containing polygons of patched
+            location and remove all records within these polygon to avoid collision between patch and original 
+            location files. schema of file: {cc/name/admin1/admin2}..,geometry(wkt format)
+        Returns:
+            list of records containing the result of the patched location files
         """
 
-        polygons = []
         locations = []
+        polygons = []
         filtered_locations = []
         common_header = None
 
@@ -159,13 +165,22 @@ class RGeocoderDataLoader:
                         if not poly.contains(p):
                             filtered_locations.append(loc)
                         else:
-                            print('Removing %s (%s,%s) inside polygon' % (loc['name'], loc['lat'], loc['lon']))
+                            print('Removing %s (%s,%s) inside polygon' % (
+                                loc.get('name', 'Unnamed'), loc['lat'], loc['lon']))
+        else:
+            filtered_locations = locations
 
         with open(patch_loc_file, 'r') as fd:
             loc_reader = csv.DictReader(fd)
             patch_locations = list(loc_reader)
 
-        return filtered_locations + patch_locations
+        new_patched_locations = filtered_locations + patch_locations
+        if output_file:
+            with open(output_file, 'w') as fd:
+                writer = csv.DictWriter(fd, fieldnames=common_header)
+                writer.writeheader()
+                writer.writerows(new_patched_locations)
+        return new_patched_locations
 
 
 class RGeocoderImpl:
