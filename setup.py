@@ -26,7 +26,7 @@ setup(name='rvgeocoder',
       package_data={'rvgeocoder': ['rg_cities1000.csv']},
       setup_requires=['numpy>=1.16.0',],
       cmdclass={'build_ext': build_ext},
-      install_requires=['numpy>=1.16.0', 'scipy>=1.3.0',],
+      install_requires=['numpy>=1.16.0', 'scipy>=1.3.0', 'shapely >=1.6.4.post2'],
       description='Offline reverse geocoder',
       license='lgpl',
       long_description=read('longdesc.txt'))
