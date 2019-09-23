@@ -115,6 +115,54 @@ class RGeocoderDataLoader:
         data_stream.seek(0)
         return data_stream
 
+    @staticmethod
+    def _merge_locations(location_files, currect_locations=None):
+        common_header = None
+
+        if not currect_locations:
+            currect_locations = []
+        for loc in location_files:
+            with open(loc, 'r') as fd:
+                loc_reader = csv.DictReader(fd)
+                file_header = loc_reader.fieldnames
+                if common_header is None:
+                    common_header = file_header
+                elif common_header != file_header:
+                    raise Exception('File %s has different header than common. Expected header = %s, found = %s' % (
+                        loc, common_header, file_header))
+                currect_locations.extend(list(loc_reader))
+        return currect_locations, common_header
+
+    @staticmethod
+    def _remove_polygons_points(locations, polygons_file):
+        if not polygons_file:
+            return locations
+
+        removed_count = 0
+        filtered_locations = []
+        polygons = []
+
+        with open(polygons_file, 'r') as fd:
+            # get polygons information
+            poly_reader = csv.DictReader(fd)
+            for row in poly_reader:
+                polygons.append((row.get('name', 'unnamed-polygon'),wkt.loads(row['geometry'])))
+
+            # iterate over polygons and remove all points inside of them - avoid collision between sets
+            for loc in locations:
+                p = Point(float(loc['lon']), float(loc['lat']))
+                found = False
+                for name, poly in polygons:
+                    if poly.contains(p):
+                        found = True
+                        removed_count += 1
+                        print('Removing %s (%s,%s) inside polygon %s' % (
+                            loc.get('name', 'unnamed-point'), loc['lat'], loc['lon'], name))
+                if not found:
+                    filtered_locations.append(loc)
+            print('total %s points were removed because found inside patched polygons' % removed_count)
+        return filtered_locations
+
     @classmethod
     def create_patch_locations(cls, location_files: list, patch_loc_file: str,
                                output_file: str = None, patch_poly_file: str = None):
@@ -135,51 +183,16 @@ class RGeocoderDataLoader:
             list of records containing the result of the patched location files
         """
 
-        locations = []
-        polygons = []
-        filtered_locations = []
-        common_header = None
+        locations, columns_name = cls._merge_locations(location_files)
+        filtered_locations = cls._remove_polygons_points(locations, patch_poly_file)
+        new_patched_locations, columns_name = cls._merge_locations([patch_loc_file], filtered_locations)
 
-        for loc in location_files:
-            with open(loc, 'r') as fd:
-                loc_reader = csv.DictReader(fd)
-                file_header = loc_reader.fieldnames
-                if common_header is None:
-                    common_header = file_header
-                elif common_header != file_header:
-                    raise Exception('File %s has different header than common. Expected header = %s, found = %s' % (
-                        loc, common_header, file_header))
-                locations.extend(list(loc_reader))
-
-        if patch_poly_file:
-            with open(patch_poly_file, 'r') as fd:
-                # get list of polygons
-                poly_reader = csv.DictReader(fd)
-                for row in poly_reader:
-                    polygons.append(wkt.loads(row['geometry']))
-
-                # iterate over polygons and remove all points inside of them - avoid collision between sets
-                for loc in locations:
-                    p = Point(float(loc['lon']), float(loc['lat']))
-                    for poly in polygons:
-                        if not poly.contains(p):
-                            filtered_locations.append(loc)
-                        else:
-                            print('Removing %s (%s,%s) inside polygon' % (
-                                loc.get('name', 'Unnamed'), loc['lat'], loc['lon']))
-        else:
-            filtered_locations = locations
-
-        with open(patch_loc_file, 'r') as fd:
-            loc_reader = csv.DictReader(fd)
-            patch_locations = list(loc_reader)
-
-        new_patched_locations = filtered_locations + patch_locations
         if output_file:
             with open(output_file, 'w') as fd:
-                writer = csv.DictWriter(fd, fieldnames=common_header)
+                writer = csv.DictWriter(fd, fieldnames=columns_name)
                 writer.writeheader()
                 writer.writerows(new_patched_locations)
+
         return new_patched_locations
 
 
