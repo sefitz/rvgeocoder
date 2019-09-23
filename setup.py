@@ -17,7 +17,7 @@ class build_ext(_build_ext):
       self.include_dirs.append(numpy.get_include())
 
 setup(name='rvgeocoder',
-      version='1.0.6',
+      version='1.0.7',
       author='Sefi Itzkovich',
       author_email='sefi.itzkovich@gmail.com',
       url='https://github.com/sefiit/rvgeocoder',

@@ -1,6 +1,10 @@
 Changes
 =======
 
+1.0.7 (2019-09-23)
+------------------
+- Refactored create_patch_locations and fixed bugs.
+
 1.0.6 (2019-09-18)
 ------------------
 - Refactored code and added RGeocoderDataLoader. Main new feature is create_patch_locations to allow overriding values for specific polygons.
