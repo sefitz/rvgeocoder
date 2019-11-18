@@ -1,3 +1,4 @@
+import io
 import random
 
 import numpy as np
@@ -9,6 +10,7 @@ from pyspark.sql.session import SparkSession
 
 ## TODO: put your custom geocoding files here
 files = []
+file_unified_data = ''.join(rvg.RGeocoderDataLoader.load_files_lines(files))
 
 # if we are doing this here mode must be equal to 1 as mode=2 does not work when trying to serialize 
 # as ckDTree has some issues with serialization
@@ -19,7 +21,8 @@ files = []
 def reverse(slat, slon):
     coords = list(zip(slat.values, slon.values))
     if files:
-        files_stream = rvg.RGeocoderDataLoader.load_files_stream(files)
+        files_stream = io.StringIO(file_unified_data)
+        files_stream.seek(0)
         rgeo = rvg.RGeocoder(stream=files_stream)
     else:
         rgeo = rvg.RGeocoder()
