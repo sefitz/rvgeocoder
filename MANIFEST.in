@@ -1,0 +1,6 @@
+include README.txt
+include longdesc.txt
+include setup.py
+include rvgeocoder/__init__.py
+include rvgeocoder/cKDTree_MP.py
+include rvgeocoder/rg_cities1000.csv
